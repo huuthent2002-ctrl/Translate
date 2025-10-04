@@ -374,21 +374,17 @@
             <input type="text" id="hostName" placeholder="Tên của bạn" value="Host">
             
             <div style="margin: 20px 0;">
-                <label style="display: block; margin-bottom: 10px; font-weight: bold;">Chọn câu hỏi:</label>
-                <select id="questionSelect">
-                    <option value="Harry Potter">Harry Potter</option>
-                    <option value="The Lord of the Rings">The Lord of the Rings</option>
-                    <option value="Spider-Man">Spider-Man</option>
-                    <option value="Iron Man">Iron Man</option>
-                    <option value="The Avengers">The Avengers</option>
-                    <option value="Game of Thrones">Game of Thrones</option>
-                    <option value="Star Wars">Star Wars</option>
-                    <option value="The Matrix">The Matrix</option>
-                    <option value="Frozen">Frozen</option>
-                    <option value="Inception">Inception</option>
-                    <option value="The Dark Knight">The Dark Knight</option>
-                    <option value="Beauty and the Beast">Beauty and the Beast</option>
-                </select>
+                <label style="display: block; margin-bottom: 10px; font-weight: bold;">Danh sách câu hỏi:</label>
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 10px;">
+                    <p style="color: #666; margin-bottom: 10px;">Game sẽ hỏi 5 câu liên tiếp</p>
+                    <ol style="margin-left: 20px; color: #333;">
+                        <li>Harry Potter</li>
+                        <li>Spider-Man</li>
+                        <li>The Avengers</li>
+                        <li>Star Wars</li>
+                        <li>Frozen</li>
+                    </ol>
+                </div>
             </div>
 
             <input type="number" id="timeLimit" placeholder="Thời gian (giây)" value="120" min="30" max="300">
@@ -439,7 +435,9 @@
             <h1>📊 So Sánh Kết Quả</h1>
             
             <div class="question-display" style="padding: 20px;">
-                <h3 style="margin-bottom: 10px;">Câu hỏi:</h3>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <h3>Câu hỏi <span id="questionNumber">1</span>/5:</h3>
+                </div>
                 <h2 id="questionResults">---</h2>
             </div>
 
@@ -448,7 +446,7 @@
                 <div id="answer2Display"></div>
             </div>
 
-            <button id="showResultsBtn" class="btn-success">🔄 Chơi câu tiếp theo</button>
+            <button id="showResultsBtn" class="btn-success">➡️ Câu tiếp theo</button>
         </div>
 
         <!-- Host: Final Results -->
@@ -565,6 +563,15 @@
         let playerName = '';
         let timerInterval = null;
 
+        // Danh sách câu hỏi - CHỈNH SỬA Ở ĐÂY
+        const QUESTIONS = [
+            "Harry Potter",
+            "Spider-Man", 
+            "The Avengers",
+            "Star Wars",
+            "Frozen"
+        ];
+
         // Helper functions
         function showScreen(screenId) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -668,7 +675,6 @@
         // HOST: Create Room
         document.getElementById('createRoomBtn').addEventListener('click', () => {
             const hostNameInput = document.getElementById('hostName').value.trim();
-            const question = document.getElementById('questionSelect').value;
             const timeLimit = parseInt(document.getElementById('timeLimit').value);
 
             if (!hostNameInput) {
@@ -683,7 +689,8 @@
             const roomData = {
                 code: roomCode,
                 host: playerName,
-                question: question,
+                questions: QUESTIONS,
+                currentQuestionIndex: 0,
                 timeLimit: timeLimit,
                 status: 'waiting',
                 createdAt: Date.now()
@@ -749,7 +756,8 @@
         document.getElementById('startGameBtn').addEventListener('click', () => {
             update(ref(database, `rooms/${currentRoomId}`), {
                 status: 'playing',
-                startTime: Date.now()
+                startTime: Date.now(),
+                currentQuestionIndex: 0
             });
 
             showScreen('hostPlayingScreen');
@@ -766,14 +774,20 @@
         });
 
         function displayQuestion() {
-            get(ref(database, `rooms/${currentRoomId}/question`)).then((snapshot) => {
-                const question = snapshot.val();
+            get(ref(database, `rooms/${currentRoomId}`)).then((snapshot) => {
+                const room = snapshot.val();
+                const currentIndex = room.currentQuestionIndex || 0;
+                const question = room.questions[currentIndex];
+                
                 document.getElementById('currentQuestion').textContent = question;
                 if (document.getElementById('playerQuestion')) {
                     document.getElementById('playerQuestion').textContent = question;
                 }
                 if (document.getElementById('questionResults')) {
                     document.getElementById('questionResults').textContent = question;
+                }
+                if (document.getElementById('playerQuestionResults')) {
+                    document.getElementById('playerQuestionResults').textContent = question;
                 }
             });
         }
@@ -854,6 +868,12 @@
                 const room = snapshot.val();
                 const answers = room.answers || {};
                 const players = room.players || {};
+                const currentIndex = room.currentQuestionIndex || 0;
+
+                // Update question number
+                if (document.getElementById('questionNumber')) {
+                    document.getElementById('questionNumber').textContent = currentIndex + 1;
+                }
 
                 const answersList = Object.entries(answers);
                 
@@ -895,17 +915,32 @@
 
         // HOST: Show Final Results
         document.getElementById('showResultsBtn').addEventListener('click', () => {
-            if (confirm('Bạn có muốn chơi câu tiếp theo không?')) {
-                // Reset for next round
-                update(ref(database, `rooms/${currentRoomId}`), {
-                    status: 'waiting',
-                    answers: null,
-                    startTime: null
-                });
-                showScreen('hostWaitingScreen');
-            } else {
-                showScreen('hostFinalScreen');
-            }
+            get(ref(database, `rooms/${currentRoomId}`)).then((snapshot) => {
+                const room = snapshot.val();
+                const currentIndex = room.currentQuestionIndex || 0;
+                const nextIndex = currentIndex + 1;
+
+                if (nextIndex < QUESTIONS.length) {
+                    // Còn câu hỏi → Chơi tiếp
+                    update(ref(database, `rooms/${currentRoomId}`), {
+                        status: 'playing',
+                        currentQuestionIndex: nextIndex,
+                        answers: null,
+                        startTime: Date.now()
+                    });
+                    
+                    showScreen('hostPlayingScreen');
+                    displayQuestion();
+                    startTimer();
+                    listenToAnswers();
+                } else {
+                    // Hết câu hỏi → Kết thúc
+                    update(ref(database, `rooms/${currentRoomId}`), {
+                        status: 'finished'
+                    });
+                    showScreen('hostFinalScreen');
+                }
+            });
         });
 
         // HOST: New Game
@@ -980,16 +1015,15 @@
                     startTimer();
                 } else if (status === 'results') {
                     showScreen('playerResultsScreen');
-                    get(ref(database, `rooms/${currentRoomId}/question`)).then((snap) => {
-                        document.getElementById('playerQuestionResults').textContent = snap.val();
+                    get(ref(database, `rooms/${currentRoomId}`)).then((snap) => {
+                        const room = snap.val();
+                        const currentIndex = room.currentQuestionIndex || 0;
+                        const question = room.questions[currentIndex];
+                        document.getElementById('playerQuestionResults').textContent = question;
                     });
                     displayAnswersComparison();
-                } else if (status === 'waiting') {
-                    // Back to waiting for next round
-                    showScreen('playerWaitingScreen');
-                    // Clear previous answers
-                    document.getElementById('playerTranslation').value = '';
-                    document.getElementById('playerExplanation').value = '';
+                } else if (status === 'finished') {
+                    showScreen('playerFinalScreen');
                 } else if (status === null) {
                     alert('Phòng đã bị đóng!');
                     backToRole();
@@ -1014,6 +1048,11 @@
             }).then(() => {
                 document.getElementById('submittedTranslation').textContent = translation;
                 document.getElementById('submittedExplanation').textContent = explanation;
+                
+                // Clear inputs for next round
+                document.getElementById('playerTranslation').value = '';
+                document.getElementById('playerExplanation').value = '';
+                
                 showScreen('playerSubmittedScreen');
             });
         });
