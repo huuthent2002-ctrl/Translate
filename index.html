@@ -793,31 +793,45 @@
         }
 
         function startTimer() {
-            get(ref(database, `rooms/${currentRoomId}`)).then((snapshot) => {
-                const room = snapshot.val();
-                let timeLeft = room.timeLimit;
+            if (timerInterval) clearInterval(timerInterval);
+            
+            const startTimeRef = ref(database, `rooms/${currentRoomId}/startTime`);
+            onValue(startTimeRef, (snapshot) => {
+                const startTime = snapshot.val();
+                if (!startTime) return;
 
-                timerInterval = setInterval(() => {
-                    timeLeft--;
-                    const minutes = Math.floor(timeLeft / 60);
-                    const seconds = timeLeft % 60;
-                    const display = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                get(ref(database, `rooms/${currentRoomId}/timeLimit`)).then((snap) => {
+                    const timeLimit = snap.val();
                     
-                    if (document.getElementById('timerDisplay')) {
-                        document.getElementById('timerDisplay').textContent = display;
-                    }
-                    if (document.getElementById('playerTimer')) {
-                        document.getElementById('playerTimer').textContent = display;
-                    }
+                    if (timerInterval) clearInterval(timerInterval);
+                    
+                    timerInterval = setInterval(() => {
+                        const now = Date.now();
+                        const elapsed = Math.floor((now - startTime) / 1000);
+                        let timeLeft = timeLimit - elapsed;
+                        
+                        if (timeLeft < 0) timeLeft = 0;
 
-                    if (timeLeft <= 0) {
-                        clearInterval(timerInterval);
-                        if (currentRole === 'host') {
-                            endAnswering();
+                        const minutes = Math.floor(timeLeft / 60);
+                        const seconds = timeLeft % 60;
+                        const display = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                        
+                        if (document.getElementById('timerDisplay')) {
+                            document.getElementById('timerDisplay').textContent = display;
                         }
-                    }
-                }, 1000);
-            });
+                        if (document.getElementById('playerTimer')) {
+                            document.getElementById('playerTimer').textContent = display;
+                        }
+
+                        if (timeLeft <= 0) {
+                            clearInterval(timerInterval);
+                            if (currentRole === 'host') {
+                                endAnswering();
+                            }
+                        }
+                    }, 100); // Update mỗi 100ms để mượt hơn
+                });
+            }, { onlyOnce: true });
         }
 
         function listenToAnswers() {
