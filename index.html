@@ -436,25 +436,31 @@
 
         <!-- Host: Results & Voting -->
         <div id="hostResultsScreen" class="screen">
-            <h1>📊 Kết Quả & Bình Chọn</h1>
+            <h1>📊 So Sánh Kết Quả</h1>
             
             <div class="question-display" style="padding: 20px;">
                 <h3 style="margin-bottom: 10px;">Câu hỏi:</h3>
                 <h2 id="questionResults">---</h2>
             </div>
 
-            <div id="answersDisplay"></div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0;">
+                <div id="answer1Display"></div>
+                <div id="answer2Display"></div>
+            </div>
 
-            <button id="showResultsBtn" class="btn-success">🏆 Xem kết quả cuối cùng</button>
+            <button id="showResultsBtn" class="btn-success">🔄 Chơi câu tiếp theo</button>
         </div>
 
         <!-- Host: Final Results -->
         <div id="hostFinalScreen" class="screen">
-            <h1>🏆 Kết Quả Cuối Cùng</h1>
+            <h1>✅ Hoàn Thành</h1>
             
-            <div id="finalResultsDisplay"></div>
+            <div style="text-align: center; padding: 40px 20px;">
+                <h2 style="color: #667eea; margin-bottom: 20px;">🎉 Cảm ơn đã tham gia!</h2>
+                <p style="color: #666; font-size: 1.2em;">Đã xem xong kết quả so sánh các bản dịch</p>
+            </div>
 
-            <button id="newGameBtn">🔄 Chơi lại</button>
+            <button id="newGameBtn">🔄 Tạo phòng mới</button>
             <button id="backToRoleFromFinalBtn" class="btn-secondary">← Về trang chủ</button>
         </div>
 
@@ -509,19 +515,29 @@
             </div>
         </div>
 
-        <!-- Player: Voting -->
-        <div id="playerVotingScreen" class="screen">
-            <h1>🗳️ Bình Chọn</h1>
-            <p class="subtitle">Chọn bản dịch hay nhất (không được vote cho mình)</p>
+        <!-- Player: Results -->
+        <div id="playerResultsScreen" class="screen">
+            <h1>📊 So Sánh Kết Quả</h1>
+            
+            <div class="question-display" style="padding: 20px;">
+                <h3 style="margin-bottom: 10px;">Câu hỏi:</h3>
+                <h2 id="playerQuestionResults">---</h2>
+            </div>
 
-            <div id="votingOptions"></div>
+            <div style="margin: 20px 0;">
+                <div id="playerAnswer1Display"></div>
+                <div id="playerAnswer2Display" style="margin-top: 15px;"></div>
+            </div>
         </div>
 
         <!-- Player: Final Results -->
         <div id="playerFinalScreen" class="screen">
-            <h1>🏆 Kết Quả</h1>
+            <h1>✅ Hoàn Thành</h1>
             
-            <div id="playerFinalResults"></div>
+            <div style="text-align: center; padding: 40px 20px;">
+                <h2 style="color: #667eea; margin-bottom: 20px;">🎉 Cảm ơn đã tham gia!</h2>
+                <p style="color: #666; font-size: 1.2em;">Chờ host bắt đầu câu tiếp theo hoặc kết thúc</p>
+            </div>
 
             <button id="backToRoleFromPlayerFinalBtn" class="btn-secondary">← Về trang chủ</button>
         </div>
@@ -530,6 +546,17 @@
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
         import { getDatabase, ref, set, get, onValue, update, remove } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+
+        // 🔥 ĐIỀN THÔNG TIN FIREBASE CỦA BẠN VÀO ĐÂY:
+        const FIREBASE_CONFIG = {
+            apiKey: "AIzaSyCUjay5Ia_evDGosxwMFLDW0_vi7q6mQJQ",                    // Thay bằng API Key của bạn
+            authDomain: "translate-fdd12.firebaseapp.com",            // Thay bằng Auth Domain
+            databaseURL: "https://translate-fdd12-default-rtdb.asia-southeast1.firebasedatabase.app",          // Thay bằng Database URL
+            projectId: "translate-fdd12"               // Thay bằng Project ID
+        };
+
+        // Kiểm tra xem đã điền config chưa
+        const isConfigured = FIREBASE_CONFIG.apiKey !== "YOUR_API_KEY_HERE";
 
         let app, database;
         let currentRole = null;
@@ -577,6 +604,20 @@
 
         // Check for saved config on load
         window.addEventListener('load', () => {
+            // Nếu đã cấu hình sẵn trong code, tự động kết nối
+            if (isConfigured) {
+                try {
+                    app = initializeApp(FIREBASE_CONFIG);
+                    database = getDatabase(app);
+                    showScreen('roleScreen');
+                    console.log('✅ Đã tự động kết nối Firebase');
+                    return;
+                } catch (error) {
+                    console.error('Lỗi Firebase config:', error);
+                }
+            }
+
+            // Nếu chưa, thử load từ localStorage
             const savedConfig = localStorage.getItem('firebaseConfig');
             if (savedConfig) {
                 try {
@@ -585,7 +626,7 @@
                     database = getDatabase(app);
                     showScreen('roleScreen');
                 } catch (error) {
-                    console.log('Cần cấu hình Firebase mới');
+                    console.log('Cần cấu hình Firebase');
                 }
             }
 
@@ -689,7 +730,18 @@
                     document.getElementById('playersListPlayer').innerHTML = html;
                 }
                 
-                document.getElementById('startGameBtn').disabled = playerCount < 1;
+                // Update player count
+                if (document.getElementById('playerCount')) {
+                    document.getElementById('playerCount').textContent = `${playerCount}/2`;
+                }
+                
+                // Enable start button only when exactly 2 players
+                document.getElementById('startGameBtn').disabled = playerCount !== 2;
+                if (playerCount === 2) {
+                    document.getElementById('startGameBtn').textContent = 'Bắt đầu trò chơi';
+                } else {
+                    document.getElementById('startGameBtn').textContent = `Bắt đầu trò chơi (Cần đủ 2 người - Hiện có ${playerCount})`;
+                }
             });
         }
 
@@ -790,100 +842,71 @@
             if (timerInterval) clearInterval(timerInterval);
             
             update(ref(database, `rooms/${currentRoomId}`), {
-                status: 'voting'
+                status: 'results'
             });
 
             showScreen('hostResultsScreen');
-            displayAnswersForVoting();
+            displayAnswersComparison();
         }
 
-        function displayAnswersForVoting() {
+        function displayAnswersComparison() {
             get(ref(database, `rooms/${currentRoomId}`)).then((snapshot) => {
                 const room = snapshot.val();
                 const answers = room.answers || {};
                 const players = room.players || {};
 
-                let html = '';
-                Object.entries(answers).forEach(([playerId, answer]) => {
-                    html += `
-                        <div class="answer-card" id="answer-${playerId}">
-                            <h4>👤 ${players[playerId]?.name || 'Người chơi'}</h4>
-                            <div class="translation">${answer.translation}</div>
-                            <div class="explanation">"${answer.explanation}"</div>
-                            <div class="votes-count" id="votes-${playerId}">0 phiếu bầu</div>
+                const answersList = Object.entries(answers);
+                
+                if (answersList.length === 2) {
+                    const [player1Id, answer1] = answersList[0];
+                    const [player2Id, answer2] = answersList[1];
+
+                    document.getElementById('answer1Display').innerHTML = `
+                        <div class="answer-card">
+                            <h4>👤 ${players[player1Id]?.name || 'Người chơi 1'}</h4>
+                            <div class="translation">${answer1.translation}</div>
+                            <div class="explanation" style="margin-top: 10px;">
+                                <strong>Giải thích:</strong><br>
+                                "${answer1.explanation}"
+                            </div>
                         </div>
                     `;
-                });
 
-                document.getElementById('answersDisplay').innerHTML = html || '<p style="text-align: center; color: #999;">Chưa có câu trả lời nào...</p>';
-                
-                listenToVotes();
-            });
-        }
+                    document.getElementById('answer2Display').innerHTML = `
+                        <div class="answer-card">
+                            <h4>👤 ${players[player2Id]?.name || 'Người chơi 2'}</h4>
+                            <div class="translation">${answer2.translation}</div>
+                            <div class="explanation" style="margin-top: 10px;">
+                                <strong>Giải thích:</strong><br>
+                                "${answer2.explanation}"
+                            </div>
+                        </div>
+                    `;
 
-        function listenToVotes() {
-            const votesRef = ref(database, `rooms/${currentRoomId}/votes`);
-            onValue(votesRef, (snapshot) => {
-                const votes = snapshot.val() || {};
-                const voteCounts = {};
-
-                Object.values(votes).forEach(votedFor => {
-                    voteCounts[votedFor] = (voteCounts[votedFor] || 0) + 1;
-                });
-
-                Object.keys(voteCounts).forEach(playerId => {
-                    const voteEl = document.getElementById(`votes-${playerId}`);
-                    if (voteEl) {
-                        voteEl.textContent = `⭐ ${voteCounts[playerId]} phiếu bầu`;
-                    }
-                });
+                    // Update player displays
+                    document.getElementById('playerAnswer1Display').innerHTML = document.getElementById('answer1Display').innerHTML;
+                    document.getElementById('playerAnswer2Display').innerHTML = document.getElementById('answer2Display').innerHTML;
+                } else {
+                    document.getElementById('answer1Display').innerHTML = '<p style="text-align: center; color: #999;">Chưa đủ 2 người trả lời...</p>';
+                    document.getElementById('answer2Display').innerHTML = '';
+                }
             });
         }
 
         // HOST: Show Final Results
-        document.getElementById('showResultsBtn').addEventListener('click', showFinalResults);
-
-        function showFinalResults() {
-            get(ref(database, `rooms/${currentRoomId}`)).then((snapshot) => {
-                const room = snapshot.val();
-                const answers = room.answers || {};
-                const players = room.players || {};
-                const votes = room.votes || {};
-
-                const voteCounts = {};
-                Object.values(votes).forEach(votedFor => {
-                    voteCounts[votedFor] = (voteCounts[votedFor] || 0) + 1;
-                });
-
-                const sorted = Object.entries(voteCounts).sort((a, b) => b[1] - a[1]);
-
-                let html = '';
-                sorted.forEach(([playerId, voteCount], index) => {
-                    const answer = answers[playerId];
-                    const player = players[playerId];
-                    const isWinner = index === 0;
-
-                    html += `
-                        <div class="answer-card ${isWinner ? 'winner' : ''}">
-                            ${isWinner ? '<h3 style="color: #ff6b00; margin-bottom: 10px;">🏆 CHIẾN THẮNG!</h3>' : ''}
-                            <h4>#${index + 1} - 👤 ${player?.name || 'Người chơi'}</h4>
-                            <div class="translation">${answer?.translation || 'N/A'}</div>
-                            <div class="explanation">"${answer?.explanation || 'N/A'}"</div>
-                            <div class="votes-count">⭐ ${voteCount} phiếu bầu</div>
-                        </div>
-                    `;
-                });
-
-                document.getElementById('finalResultsDisplay').innerHTML = html;
-                document.getElementById('playerFinalResults').innerHTML = html;
-
+        document.getElementById('showResultsBtn').addEventListener('click', () => {
+            if (confirm('Bạn có muốn chơi câu tiếp theo không?')) {
+                // Reset for next round
                 update(ref(database, `rooms/${currentRoomId}`), {
-                    status: 'finished'
+                    status: 'waiting',
+                    answers: null,
+                    startTime: null
                 });
-
+                showScreen('hostWaitingScreen');
+            } else {
                 showScreen('hostFinalScreen');
-            });
-        }
+            }
+        });
 
         // HOST: New Game
         document.getElementById('newGameBtn').addEventListener('click', () => {
@@ -955,12 +978,18 @@
                     showScreen('playerAnswerScreen');
                     displayQuestion();
                     startTimer();
-                } else if (status === 'voting') {
-                    showScreen('playerVotingScreen');
-                    displayVotingOptions();
-                } else if (status === 'finished') {
-                    showScreen('playerFinalScreen');
-                    showFinalResults();
+                } else if (status === 'results') {
+                    showScreen('playerResultsScreen');
+                    get(ref(database, `rooms/${currentRoomId}/question`)).then((snap) => {
+                        document.getElementById('playerQuestionResults').textContent = snap.val();
+                    });
+                    displayAnswersComparison();
+                } else if (status === 'waiting') {
+                    // Back to waiting for next round
+                    showScreen('playerWaitingScreen');
+                    // Clear previous answers
+                    document.getElementById('playerTranslation').value = '';
+                    document.getElementById('playerExplanation').value = '';
                 } else if (status === null) {
                     alert('Phòng đã bị đóng!');
                     backToRole();
@@ -988,45 +1017,6 @@
                 showScreen('playerSubmittedScreen');
             });
         });
-
-        // PLAYER: Display voting options
-        function displayVotingOptions() {
-            get(ref(database, `rooms/${currentRoomId}`)).then((snapshot) => {
-                const room = snapshot.val();
-                const answers = room.answers || {};
-                const players = room.players || {};
-
-                let html = '';
-                Object.entries(answers).forEach(([playerId, answer]) => {
-                    if (playerId === currentPlayerId) return; // Can't vote for yourself
-
-                    html += `
-                        <div class="answer-card">
-                            <h4>👤 ${players[playerId]?.name || 'Người chơi'}</h4>
-                            <div class="translation">${answer.translation}</div>
-                            <div class="explanation">"${answer.explanation}"</div>
-                            <button class="vote-btn" onclick="voteFor('${playerId}')">🗳️ Vote cho bản dịch này</button>
-                        </div>
-                    `;
-                });
-
-                document.getElementById('votingOptions').innerHTML = html || '<p style="text-align: center; color: #999;">Không có đáp án nào để vote...</p>';
-            });
-        }
-
-        // PLAYER: Vote
-        window.voteFor = function(playerId) {
-            set(ref(database, `rooms/${currentRoomId}/votes/${currentPlayerId}`), playerId).then(() => {
-                alert('✅ Đã bình chọn!');
-                
-                // Disable all vote buttons
-                document.querySelectorAll('.vote-btn').forEach(btn => {
-                    btn.disabled = true;
-                    btn.classList.add('voted');
-                    btn.textContent = '✓ Đã bình chọn';
-                });
-            });
-        };
     </script>
 </body>
 </html>
