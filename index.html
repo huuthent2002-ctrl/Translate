@@ -885,52 +885,92 @@
             displayAnswersComparison();
         }
 
-        function displayAnswersComparison() {
+       function displayAnswersComparison() {
             get(ref(database, `rooms/${currentRoomId}`)).then((snapshot) => {
                 const room = snapshot.val();
                 const answers = room.answers || {};
                 const players = room.players || {};
                 const currentIndex = room.currentQuestionIndex || 0;
 
-                // Update question number
-                if (document.getElementById('questionNumber')) {
-                    document.getElementById('questionNumber').textContent = currentIndex + 1;
-                }
+            // Update question number
+            if (document.getElementById('questionNumber')) {
+                document.getElementById('questionNumber').textContent = currentIndex + 1;
+            }
 
-                const answersList = Object.entries(answers);
+            const answersList = Object.entries(answers);
+            const playersArray = Object.entries(players);
+        
+            if (answersList.length === 0) {
+                // Không ai trả lời
+                document.getElementById('answer1Display').innerHTML = `
+                    <div class="answer-card" style="text-align: center; padding: 40px;">
+                        <p style="color: #999; font-size: 1.2em;">⏰ Cả hai chưa kịp trả lời</p>
+                    </div>
+                `;
+                document.getElementById('answer2Display').innerHTML = '';
                 
-                if (answersList.length === 2) {
-                    const [player1Id, answer1] = answersList[0];
-                    const [player2Id, answer2] = answersList[1];
-
-                    document.getElementById('answer1Display').innerHTML = `
-                        <div class="answer-card">
-                            <h4>👤 ${players[player1Id]?.name || 'Người chơi 1'}</h4>
-                            <div class="translation">${answer1.translation}</div>
-                            <div class="explanation" style="margin-top: 10px;">
-                                <strong>Giải thích:</strong><br>
-                                "${answer1.explanation}"
-                            </div>
+                document.getElementById('playerAnswer1Display').innerHTML = document.getElementById('answer1Display').innerHTML;
+                document.getElementById('playerAnswer2Display').innerHTML = '';
+                
+            } else if (answersList.length === 1) {
+                // Chỉ 1 người trả lời
+                const [answeredPlayerId, answer] = answersList[0];
+                const answeredPlayer = players[answeredPlayerId];
+                
+                // Tìm người chưa trả lời
+                const unansweredPlayer = playersArray.find(([id]) => id !== answeredPlayerId);
+                const unansweredPlayerName = unansweredPlayer ? unansweredPlayer[1].name : 'Người chơi';
+                
+                document.getElementById('answer1Display').innerHTML = `
+                    <div class="answer-card">
+                        <h4>👤 ${answeredPlayer?.name || 'Người chơi'}</h4>
+                        <div class="translation">${answer.translation}</div>
+                        <div class="explanation" style="margin-top: 10px;">
+                            <strong>Giải thích:</strong><br>
+                            "${answer.explanation}"
                         </div>
-                    `;
-
-                    document.getElementById('answer2Display').innerHTML = `
-                        <div class="answer-card">
-                            <h4>👤 ${players[player2Id]?.name || 'Người chơi 2'}</h4>
-                            <div class="translation">${answer2.translation}</div>
-                            <div class="explanation" style="margin-top: 10px;">
-                                <strong>Giải thích:</strong><br>
-                                "${answer2.explanation}"
-                            </div>
+                    </div>
+                `;
+                
+                document.getElementById('answer2Display').innerHTML = `
+                    <div class="answer-card" style="text-align: center; padding: 40px; opacity: 0.6;">
+                        <h4>👤 ${unansweredPlayerName}</h4>
+                        <p style="color: #999; font-size: 1.1em; margin-top: 20px;">⏰ Chưa trả lời</p>
+                    </div>
+                `;
+                
+                document.getElementById('playerAnswer1Display').innerHTML = document.getElementById('answer1Display').innerHTML;
+                document.getElementById('playerAnswer2Display').innerHTML = document.getElementById('answer2Display').innerHTML;
+                
+            } else if (answersList.length === 2) {
+                // Cả 2 đều trả lời
+                const [player1Id, answer1] = answersList[0];
+                const [player2Id, answer2] = answersList[1];
+    
+                document.getElementById('answer1Display').innerHTML = `
+                    <div class="answer-card">
+                        <h4>👤 ${players[player1Id]?.name || 'Người chơi 1'}</h4>
+                        <div class="translation">${answer1.translation}</div>
+                        <div class="explanation" style="margin-top: 10px;">
+                            <strong>Giải thích:</strong><br>
+                            "${answer1.explanation}"
                         </div>
-                    `;
-
-                    // Update player displays
-                    document.getElementById('playerAnswer1Display').innerHTML = document.getElementById('answer1Display').innerHTML;
-                    document.getElementById('playerAnswer2Display').innerHTML = document.getElementById('answer2Display').innerHTML;
-                } else {
-                    document.getElementById('answer1Display').innerHTML = '<p style="text-align: center; color: #999;">Chưa đủ 2 người trả lời...</p>';
-                    document.getElementById('answer2Display').innerHTML = '';
+                    </div>
+                `;
+    
+                document.getElementById('answer2Display').innerHTML = `
+                    <div class="answer-card">
+                        <h4>👤 ${players[player2Id]?.name || 'Người chơi 2'}</h4>
+                        <div class="translation">${answer2.translation}</div>
+                        <div class="explanation" style="margin-top: 10px;">
+                            <strong>Giải thích:</strong><br>
+                            "${answer2.explanation}"
+                        </div>
+                    </div>
+                `;
+    
+                document.getElementById('playerAnswer1Display').innerHTML = document.getElementById('answer1Display').innerHTML;
+                document.getElementById('playerAnswer2Display').innerHTML = document.getElementById('answer2Display').innerHTML;
                 }
             });
         }
