@@ -376,14 +376,8 @@
             <div style="margin: 20px 0;">
                 <label style="display: block; margin-bottom: 10px; font-weight: bold;">Danh sách câu hỏi:</label>
                 <div style="background: #f8f9fa; padding: 15px; border-radius: 10px;">
-                    <p style="color: #666; margin-bottom: 10px;">Game sẽ hỏi 5 câu liên tiếp</p>
-                    <ol style="margin-left: 20px; color: #333;">
-                        <li>Diagon Alley</li>
-                        <li>Genesis</li>
-                        <li>King's Landing</li>
-                        <li>Jesus of Nazareth</li>
-                        <li>Frozen</li>
-                    </ol>
+                    <p style="color: #666; margin-bottom: 10px;">Game sẽ hỏi 10 câu liên tiếp</p>
+                    <p style="color: #667eea; font-weight: bold; margin-top: 5px;">Good luck! 🍀</p>
                 </div>
             </div>
 
@@ -436,7 +430,7 @@
             
             <div class="question-display" style="padding: 20px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                    <h3>Câu hỏi <span id="questionNumber">1</span>/5:</h3>
+                    <h3>Câu hỏi <span id="questionNumber">1</span>/10:</h3>
                 </div>
                 <h2 id="questionResults">---</h2>
             </div>
@@ -446,7 +440,10 @@
                 <div id="answer2Display"></div>
             </div>
 
-            <button id="showResultsBtn" class="btn-success">➡️ Câu tiếp theo</button>
+            <div style="display: flex; gap: 10px;">
+                <button id="showResultsBtn" class="btn-success" style="flex: 1;">➡️ Câu tiếp theo</button>
+                <button id="endGameBtn" class="btn-danger" style="flex: 0 0 auto;">⏹️ Kết thúc sớm</button>
+            </div>
         </div>
 
         <!-- Host: Final Results -->
@@ -565,11 +562,16 @@
 
         // Danh sách câu hỏi - CHỈNH SỬA Ở ĐÂY
         const QUESTIONS = [
-            "Diagon Alley",
-            "Genesis", 
-            "King's Landing",
-            "Jesus of Nazareth",
-            "Frozen"
+            "Đại Học Khánh Hoà",
+            "Dead Sea",
+            "Statue of Liberty", 
+            "Black Death",
+            "Silk Road",
+            "Sandman",
+            "The Renaissance era",
+            "Supreme Court",
+            "Sex and the City",
+            "Newton’s laws of motion"
         ];
 
         // Helper functions
@@ -963,6 +965,16 @@
             });
         });
 
+        // HOST: End Game Early
+        document.getElementById('endGameBtn').addEventListener('click', () => {
+            if (confirm('⚠️ Bạn có chắc muốn kết thúc game sớm? Các câu còn lại sẽ bị bỏ qua.')) {
+                update(ref(database, `rooms/${currentRoomId}`), {
+                    status: 'finished'
+                });
+                showScreen('hostFinalScreen');
+            }
+        });
+
         // HOST: New Game
         document.getElementById('newGameBtn').addEventListener('click', () => {
             if (confirm('Bạn có muốn tạo phòng mới?')) {
@@ -1030,9 +1042,12 @@
                 const status = snapshot.val();
                 
                 if (status === 'playing') {
-                    showScreen('playerAnswerScreen');
-                    displayQuestion();
-                    startTimer();
+                    const currentScreen = document.querySelector('.screen.active')?.id;
+                    if (currentScreen !== 'playerAnswerScreen' && currentScreen !== 'playerSubmittedScreen') {
+                        showScreen('playerAnswerScreen');
+                        displayQuestion();
+                        setTimeout(() => startTimer(), 500);
+                    }
                 } else if (status === 'results') {
                     showScreen('playerResultsScreen');
                     get(ref(database, `rooms/${currentRoomId}`)).then((snap) => {
