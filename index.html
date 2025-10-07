@@ -1077,13 +1077,19 @@
 
         // PLAYER: Listen to room status
         function listenToRoomStatus() {
-            const statusRef = ref(database, `rooms/${currentRoomId}/status`);
+             const statusRef = ref(database, `rooms/${currentRoomId}/status`);
             onValue(statusRef, (snapshot) => {
                 const status = snapshot.val();
                 
                 if (status === 'playing') {
                     const currentScreen = document.querySelector('.screen.active')?.id;
                     if (currentScreen !== 'playerAnswerScreen' && currentScreen !== 'playerSubmittedScreen') {
+                        // Clear inputs và results cũ
+                        document.getElementById('playerTranslation').value = '';
+                        document.getElementById('playerExplanation').value = '';
+                        document.getElementById('playerAnswer1Display').innerHTML = '';
+                        document.getElementById('playerAnswer2Display').innerHTML = '';
+                        
                         showScreen('playerAnswerScreen');
                         displayQuestion();
                         setTimeout(() => startTimer(), 500);
